@@ -112,7 +112,7 @@ export default function Home() {
   }
 
   return (
-    <main className="bg-white min-h-screen py-20 px-6">
+    <main className="bg-white min-h-screen py-20 px-3 md:px-6">
       <div className="max-w-5xl mx-auto">
         {/* HERO */}
         <div className="mb-16">
@@ -150,7 +150,7 @@ export default function Home() {
           onSubmit={handleSubmit(onSubmit, (errors) =>
             console.log("Errores de validación:", errors),
           )}
-          className="bg-white border border-gray/20 rounded-4xl p-6 md:p-12 shadow-[0_4px_30px_rgba(132,138,140,0.4)]"
+          className="bg-white border border-gray/20 rounded-4xl py-8 p-3 sm:p-6 md:p-12 shadow-[0_4px_30px_rgba(132,138,140,0.4)]"
         >
           {/* DATOS PERSONALES */}
           <SectionTitle
@@ -496,11 +496,11 @@ export default function Home() {
           </div>
 
           {/* SUBMIT */}
-          <div className="mt-12 flex justify-end">
+          <div className="mt-6 md:mt-12 flex justify-end">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-blue text-white px-10 py-5 rounded-2xl text-sm md:text-base font-semibold tracking-wide transition-all duration-300 hover:scale-[1.02] hover:opacity-90 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+              className="bg-blue text-white w-full md:w-auto px-10 py-5 rounded-2xl text-sm md:text-base font-semibold tracking-wide transition-all duration-300 hover:scale-[1.02] hover:opacity-90 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
             >
               {isSubmitting ? "Enviando solicitud..." : "Solicitar reunión"}
             </button>
