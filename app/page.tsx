@@ -14,6 +14,8 @@ import SectionTitle from "@/components/SectionTitle";
 
 import { useState } from "react";
 import TurnoSelector from "@/components/TurnoSelector";
+import Confirmacion from "@/components/Confirmacion";
+import { sileo } from "sileo";
 
 export default function Home() {
   const {
@@ -28,12 +30,18 @@ export default function Home() {
     fecha: string;
     hora: string;
   } | null>(null);
+  const [confirmacion, setConfirmacion] = useState<{
+    turno: { fecha: string; hora: string };
+    nombre: string;
+    apellido: string;
+    dni: string;
+    telefono: string;
+    localidad: string;
+  } | null>(null);
 
   const [turnoError, setTurnoError] = useState<string>("");
 
   const onSubmit = async (data: any) => {
-    console.log(data);
-
     // Validar que haya turno elegido antes de enviar
     if (
       !turnoSeleccionado ||
@@ -46,36 +54,62 @@ export default function Home() {
     }
     setTurnoError("");
 
-    try {
-      const response = await fetch("/api/turnos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          fecha: turnoSeleccionado.fecha,
-          hora: turnoSeleccionado.hora,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        alert(
-          `✅ Solicitud enviada correctamente.\nTurno: ${result.turno.fecha} a las ${result.turno.hora} hs.`,
-        );
-      } else {
-        // Turno ya ocupado u otro error de negocio
-        alert(`❌ ${result.error ?? "Ocurrió un error. Intentá de nuevo."}`);
-        // Si el turno ya no está disponible, limpiar la selección
-        if (response.status === 409) {
-          setTurnoSeleccionado(null);
-        }
+    const request = fetch("/api/turnos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...data,
+        fecha: turnoSeleccionado.fecha,
+        hora: turnoSeleccionado.hora,
+      }),
+    }).then(async (res) => {
+      const result = await res.json();
+      if (!result.success) {
+        if (res.status === 409) setTurnoSeleccionado(null);
+        throw new Error(result.error ?? "Ocurrió un error. Intentá de nuevo.");
       }
-    } catch (error) {
-      console.error(error);
-      alert("Error al enviar la solicitud. Verificá tu conexión.");
-    }
+      return result;
+    });
+
+    sileo.promise(request, {
+      loading: {
+        title: "Enviando solicitud...",
+        description: "Registrando tu turno, un momento.",
+      },
+      success: (result: any) => {
+        // Mostrar pantalla de confirmación
+        setConfirmacion({
+          turno: result.turno,
+          nombre: data.nombre,
+          apellido: data.apellido,
+          dni: data.dni,
+          telefono: data.telefono,
+          localidad: data.localidad,
+        });
+        return {
+          title: "Solicitud enviada",
+          description: `Turno: ${result.turno.fecha} a las ${result.turno.hora} hs.`,
+        };
+      },
+      error: (err: any) => ({
+        title: "No se pudo enviar",
+        description: err?.message ?? "Verificá tu conexión e intentá de nuevo.",
+      }),
+    });
   };
+
+  if (confirmacion) {
+    return (
+      <Confirmacion
+        turno={confirmacion.turno}
+        nombre={confirmacion.nombre}
+        apellido={confirmacion.apellido}
+        dni={confirmacion.dni}
+        telefono={confirmacion.telefono}
+        localidad={confirmacion.localidad}
+      />
+    );
+  }
 
   return (
     <main className="bg-white min-h-screen py-20 px-6">
