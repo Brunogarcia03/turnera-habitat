@@ -1,65 +1,478 @@
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { meetingSchema, MeetingFormData } from "@/utils/schemas/meeting-schema";
+
 import Image from "next/image";
+import Link from "next/link";
+
+import Input from "@/components/ui/Input";
+import RadioGroup from "@/components/ui/RadioGroup";
+import CheckboxGroup from "@/components/ui/CheckboxGroup";
+import SectionTitle from "@/components/SectionTitle";
+
+import { useState } from "react";
+import TurnoSelector from "@/components/TurnoSelector";
 
 export default function Home() {
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<MeetingFormData>({
+    resolver: zodResolver(meetingSchema),
+  });
+  const [turnoSeleccionado, setTurnoSeleccionado] = useState<{
+    fecha: string;
+    hora: string;
+  } | null>(null);
+
+  const [turnoError, setTurnoError] = useState<string>("");
+
+  const onSubmit = async (data: any) => {
+    console.log(data);
+
+    // Validar que haya turno elegido antes de enviar
+    if (
+      !turnoSeleccionado ||
+      !turnoSeleccionado.fecha ||
+      !turnoSeleccionado.hora ||
+      turnoSeleccionado.hora === ""
+    ) {
+      setTurnoError("Debe seleccionar un día y horario.");
+      return;
+    }
+    setTurnoError("");
+
+    try {
+      const response = await fetch("/api/turnos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          fecha: turnoSeleccionado.fecha,
+          hora: turnoSeleccionado.hora,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(
+          `✅ Solicitud enviada correctamente.\nTurno: ${result.turno.fecha} a las ${result.turno.hora} hs.`,
+        );
+      } else {
+        // Turno ya ocupado u otro error de negocio
+        alert(`❌ ${result.error ?? "Ocurrió un error. Intentá de nuevo."}`);
+        // Si el turno ya no está disponible, limpiar la selección
+        if (response.status === 409) {
+          setTurnoSeleccionado(null);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error al enviar la solicitud. Verificá tu conexión.");
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="bg-white min-h-screen py-20 px-6">
+      <div className="max-w-5xl mx-auto">
+        {/* HERO */}
+        <div className="mb-16">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/ICON.png"
+              priority
+              alt="Logo Municipalidad de Alberti"
+              width={32}
+              height={32}
+              className="w-8 md:w-10 h-auto"
+            />
+
+            <h1
+              id="text-icon"
+              className="text-blue uppercase tracking-widest font-bold text-[1rem] sm:text-[1.1rem] leading-none ml-2 transition-colors duration-300"
+              style={{ willChange: "auto" }}
+            >
+              Municipalidad <br />
+              de Alberti
+            </h1>
+          </Link>
+
+          <h1 className="text-4xl md:text-6xl font-bold text-black leading-tight max-w-4xl">
+            Solicitud de Reunión
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+
+          <p className="text-gray text-lg md:text-xl mt-4">
+            Evaluación de requisitos de Hábitat
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        {/* FORM */}
+        <form
+          onSubmit={handleSubmit(onSubmit, (errors) =>
+            console.log("Errores de validación:", errors),
+          )}
+          className="bg-white border border-gray/20 rounded-4xl p-6 md:p-12 shadow-[0_4px_30px_rgba(132,138,140,0.4)]"
+        >
+          {/* DATOS PERSONALES */}
+          <SectionTitle
+            title="Datos Personales"
+            description="Complete la información personal solicitada."
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+            <Input
+              label="Nombre"
+              name="nombre"
+              required
+              placeholder="Ingrese su nombre"
+              register={register}
+              error={errors.nombre?.message}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+            <Input
+              label="Apellido"
+              name="apellido"
+              required
+              placeholder="Ingrese su apellido"
+              register={register}
+              error={errors.apellido?.message}
+            />
+
+            <Input
+              label="Edad"
+              name="edad"
+              type="number"
+              required
+              placeholder="Ingrese su edad"
+              register={register}
+              error={errors.edad?.message}
+            />
+
+            <Input
+              label="DNI"
+              name="dni"
+              required
+              placeholder="Ingrese su DNI"
+              register={register}
+              error={errors.dni?.message}
+            />
+
+            <Input
+              label="Teléfono"
+              name="telefono"
+              required
+              placeholder="Ingrese su teléfono"
+              register={register}
+              error={errors.telefono?.message}
+            />
+
+            <Input
+              label="Dirección"
+              name="direccion"
+              required
+              placeholder="Ingrese su dirección"
+              register={register}
+              error={errors.direccion?.message}
+            />
+
+            <div className="md:col-span-2">
+              <Input
+                label="Localidad"
+                name="localidad"
+                required
+                placeholder="Ingrese su localidad"
+                register={register}
+                error={errors.localidad?.message}
+              />
+            </div>
+          </div>
+
+          {/* RESIDENCIA */}
+          <SectionTitle
+            title="Residencia"
+            description="Información sobre permanencia en Alberti."
+          />
+
+          <RadioGroup
+            label="¿Reside hace 6 años o más en Alberti?"
+            name="residencia"
+            required
+            register={register}
+            options={[
+              {
+                label: "Sí",
+                value: "si",
+              },
+              {
+                label: "No",
+                value: "no",
+              },
+            ]}
+          />
+
+          {/* GRUPO FAMILIAR */}
+          <SectionTitle
+            title="Grupo Familiar"
+            description="Complete la conformación del grupo familiar conviviente."
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+            <Input
+              label="Cantidad de menores convivientes"
+              name="menores"
+              type="number"
+              required
+              placeholder="0"
+              register={register}
+              error={errors.menores?.message}
+            />
+
+            <Input
+              label="Cantidad de mayores convivientes"
+              name="mayores"
+              type="number"
+              required
+              placeholder="0"
+              register={register}
+              error={errors.mayores?.message}
+            />
+          </div>
+
+          {/* DISCAPACIDAD */}
+          <SectionTitle
+            title="Discapacidad"
+            description="Información relacionada a discapacidad y CUD."
+          />
+
+          <RadioGroup
+            label="¿Algún integrante de la familia posee discapacidad?"
+            name="discapacidad"
+            required
+            register={register}
+            options={[
+              {
+                label: "Sí",
+                value: "si",
+              },
+              {
+                label: "No",
+                value: "no",
+              },
+            ]}
+          />
+
+          <RadioGroup
+            label="¿Posee CUD?"
+            name="cud"
+            required
+            register={register}
+            options={[
+              {
+                label: "Sí",
+                value: "si",
+              },
+              {
+                label: "No",
+                value: "no",
+              },
+            ]}
+          />
+
+          {/* INGRESOS */}
+          <SectionTitle
+            title="Ingresos"
+            description="Seleccione todas las opciones que correspondan."
+          />
+
+          <CheckboxGroup
+            label="Ingresos del grupo familiar"
+            name="ingresos"
+            register={register}
+            options={[
+              {
+                label: "Trabajo Formal",
+                value: "trabajo_formal",
+              },
+              {
+                label: "Trabajo Informal",
+                value: "trabajo_informal",
+              },
+              {
+                label: "Autónomo",
+                value: "autonomo",
+              },
+              {
+                label: "Monotributista",
+                value: "monotributista",
+              },
+              {
+                label: "AUH",
+                value: "auh",
+              },
+              {
+                label: "Pensión",
+                value: "pension",
+              },
+              {
+                label: "Jubilación",
+                value: "jubilacion",
+              },
+              {
+                label: "Otros",
+                value: "otros",
+              },
+            ]}
+          />
+
+          <div className="mt-6">
+            <Input
+              label="Otros ingresos (completar)"
+              name="otros_ingresos"
+              placeholder="Detalle otros ingresos"
+              register={register}
+              error={errors.otros_ingresos?.message}
+            />
+          </div>
+
+          {/* TRABAJADOR MUNICIPAL */}
+          <SectionTitle
+            title="Situación Laboral"
+            description="Información laboral municipal."
+          />
+
+          <RadioGroup
+            label="¿Es trabajador/a municipal?"
+            name="municipal"
+            required
+            register={register}
+            options={[
+              {
+                label: "Sí",
+                value: "si",
+              },
+              {
+                label: "No",
+                value: "no",
+              },
+            ]}
+          />
+
+          {/* BIENES */}
+          <SectionTitle
+            title="Bienes"
+            description="Información patrimonial del grupo familiar."
+          />
+
+          <RadioGroup
+            label="¿Posee bienes inmuebles a su nombre o del grupo familiar? (casa / terreno)"
+            name="bienes_inmuebles"
+            required
+            register={register}
+            options={[
+              {
+                label: "Sí",
+                value: "si",
+              },
+              {
+                label: "No",
+                value: "no",
+              },
+            ]}
+          />
+
+          <RadioGroup
+            label="¿Posee bienes muebles registrables a su nombre o del grupo familiar? (camión / auto / moto)"
+            name="bienes_muebles"
+            required
+            register={register}
+            options={[
+              {
+                label: "Sí",
+                value: "si",
+              },
+              {
+                label: "No",
+                value: "no",
+              },
+            ]}
+          />
+
+          <SectionTitle
+            title="Selección de Turno"
+            description="Elegí el día y horario de tu preferencia."
+          />
+
+          <TurnoSelector
+            onSelect={(turno) => {
+              setTurnoSeleccionado(turno);
+              setValue("fecha", turno.fecha, { shouldValidate: false });
+              setValue("hora", turno.hora, { shouldValidate: false });
+            }}
+            selected={turnoSeleccionado}
+            error={turnoError}
+          />
+
+          {/* DECLARACION */}
+          <div className="mt-16 border border-blue/20 bg-blue/3 rounded-3xl p-6 md:p-10">
+            <h3 className="text-2xl font-bold text-black mb-6">
+              Requisitos y Declaración
+            </h3>
+
+            <div className="space-y-4 text-gray leading-relaxed">
+              <p>
+                La presente solicitud de reunión no implica inscripción al
+                listado de potenciales adjudicatarios.
+              </p>
+
+              <p>
+                El solicitante deberá presentarse con la documentación que
+                acredite lo declarado en el presente formulario.
+              </p>
+
+              <p>
+                Presentarse en el lugar y horario asignado con toda la
+                documentación correspondiente.
+              </p>
+            </div>
+
+            <label className="flex items-start gap-4 mt-8 cursor-pointer">
+              <input
+                type="checkbox"
+                {...register("confirmacion", {
+                  setValueAs: (v) => v === true || v === "true",
+                })}
+                className="mt-1 w-5 h-5 accent-blue"
+              />
+
+              <span className="text-black leading-relaxed">
+                Declaro conocer los requisitos y presentar la documentación
+                respaldatoria correspondiente.
+              </span>
+            </label>
+            {errors.confirmacion && (
+              <span className="text-sm text-red-500 mt-2 block">
+                Debe aceptar la declaración para continuar.
+              </span>
+            )}
+          </div>
+
+          {/* SUBMIT */}
+          <div className="mt-12 flex justify-end">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-blue text-white px-10 py-5 rounded-2xl text-sm md:text-base font-semibold tracking-wide transition-all duration-300 hover:scale-[1.02] hover:opacity-90 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {isSubmitting ? "Enviando solicitud..." : "Solicitar reunión"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
   );
 }
